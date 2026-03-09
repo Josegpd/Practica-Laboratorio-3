@@ -1,0 +1,179 @@
+\documentclass[]{article}
+
+\usepackage{geometry}
+\usepackage[spanish]{babel}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usepackage{float}
+\usepackage{tabularx}
+
+\begin{document}
+	
+	% TITULO
+	\begin{center}
+		\Large{\textbf{Informe Práctica de Laboratorio 3}} \\
+		\footnotesize{Alumno: José Quintana} \\
+		\rule{1\linewidth}{0.5pt} \\ % Línea decorativa
+	\end{center}
+	
+	% PREGUNTA 1
+	{\large \textbf{1. Explique cómo se organiza la memoria cuando un sistema utiliza memory-mapped I/O. ¿En qué región de memoria se suelen mapear los dispositivos? ¿Qué implicaciones tiene para las instrucciones lw y sw?}} \\
+	
+	En un sistema con memory-mapped I/O, la memoria principal (RAM) y los registros de los dispositivos periféricos comparten el mismo espacio de direcciones físico. El procesador no distingue a nivel lógico si se está comunicando con la RAM o con un periférico. Los dispositivos suelen mapearse en una región específica, generalmente en la parte más alta del espacio de direcciones de memoria (por ejemplo, en MIPS usando MARS, se ubican comúnmente a partir de la dirección 0xFFFF0000), para mantenerlos separados de las áreas reservadas para el código y los datos del usuario. \\
+	
+	Dado que los periféricos parecen ubicaciones de memoria estándar para el procesador, no se requieren instrucciones especiales de E/S. La instrucción \textit{lw} se utiliza para leer el estado o los datos del dispositivo, y la instrucción \textit{sw} se usa para enviar comandos de control o escribir datos en el dispositivo. \\
+	
+	% PREGUNTA 2
+	{\large \textbf{2. ¿Cuál es la principal diferencia entre memory-mapped I/O y la entrada/salida por puertos? ¿Qué ventajas y desventajas tiene cada enfoque? ¿Por qué MIPS32 utiliza principalmente memory-mapped I/O?}} \\
+	
+	La diferencia principal radica en los espacios de direccionamiento. Mientras el mapeo en memoria usa un único espacio compartido, la E/S por puertos (aislada) utiliza un espacio de direcciones totalmente independiente para los periféricos, requiriendo instrucciones de hardware exclusivas (como IN y OUT en la arquitectura x86). \\
+	
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabularx}{\textwidth}{|l | X | X |}
+			\hline
+			\textbf{Características} & \textbf{Memory-mapped I/O} & \textbf{Port-Mapped I/O} \\
+			\hline
+			\textbf{Ventajas} & Simplifica el diseño del procesador. Se pueden usar todos los modos de direccionamiento. & Ahorra espacio de direcciones en la RAM. Aislamiento físico de buses. \\
+			\hline
+			\textbf{Desventajas} & Consume espacio del mapa de memoria principal. Requiere decodificación de direcciones más compleja. & Requiere instrucciones especiales de CPU. Diseño de bus más complejo. \\
+			\hline
+		\end{tabularx}
+	\end{table}
+	
+	La razón por la que MIPS32 utiliza memory-mapped I/O es porque sigue la filosofía RISC. El objetivo es mantener la arquitectura y el conjunto de instrucciones lo más simples y eficientes posible. Al usar E/S mapeada en memoria, MIPS evita tener que añadir instrucciones exclusivas y circuitos de control de E/S separados, reutilizando el datapath existente para lw y sw. \\
+	
+	% PREGUNTA 3
+	{\large \textbf{3. En un sistema con memory-mapped I/O: ¿Qué problemas pueden surgir si dos dispositivos usan direcciones solapadas? ¿Cómo se evita este conflicto?}} \\
+	
+	Si dos dispositivos utilizan direcciones de memoria solapadas, se produce un conflicto de hardware grave conocido como colisión de bus. Cuando el procesador intenta leer de esa dirección, ambos periféricos intentarán colocar sus datos en el bus de datos al mismo tiempo, provocando un cortocircuito a nivel lógico, corrupción de los datos leídos y un comportamiento impredecible del sistema. Al escribir, ambos periféricos registrarían comandos o datos erróneos simultáneamente. \\
+	
+	Este conflicto se evita mediante un diseño cuidadoso del mapa de memoria y el uso de un decodificador de direcciones. Este circuito de hardware toma las líneas del bus de direcciones y asegura que la señal de habilitación se active de forma mutuamente excluyente. Es decir, el hardware garantiza que solo un único dispositivo pueda estar activo (escuchando o escribiendo en el bus) para un rango de direcciones específico. \\
+	
+	% PREGUNTA 4
+	{\large \textbf{4. ¿Por qué se considera que el memory-mapped I/O simplifica el diseño del conjunto de instrucciones de un procesador? ¿Qué tipo de instrucciones adicionales serían necesarias si se usara E/S por puertos?}} \\
+	
+	Se considera que simplifica la ISA porque el procesador no necesita lógica de decodificación interna ni microcódigo para manejar el hardware externo; simplemente trata a los puertos como variables en la memoria. Toda la rica variedad de modos de direccionamiento disponibles para la memoria normal está automáticamente disponible para interactuar con los periféricos. \\
+	
+	Si se utilizara E/S por puertos, sería estrictamente necesario agregar nuevas instrucciones al repertorio del procesador (como in \$v0, puerto o out puerto, \$v0). Además, el procesador necesitaría una línea de control adicional en el bus de sistema (por ejemplo, un pin M/IO\# o señal Memory / Input-Output) para indicarle a la placa base si la dirección en el bus corresponde a la RAM o a un puerto periférico. \\
+	
+	% PREGUNTA 5
+	{\large \textbf{5. ¿Qué ocurre a nivel del bus de datos y direcciones cuando el procesador accede a una dirección de memoria que corresponde a un dispositivo? ¿Cómo sabe el hardware que debe acceder a un periférico en lugar de la RAM?}} \\
+	
+	\begin{itemize}[label=$\bullet$]
+		\item \textbf{Petición del procesador:} El procesador coloca la dirección física de destino en el bus de direcciones y activa la señal de control correspondiente (lectura o escritura) en el bus de control, ignorando por completo si el destino es RAM o periférico.
+		
+		\item \textbf{Decodificación:} Un circuito externo en la tarjeta madre, llamado decodificador de direcciones, evalúa la dirección presente en el bus.
+		
+		\item \textbf{Selección del destino:} Si la dirección cae en el rango asignado al dispositivo periférico, el decodificador activa el pin Chip Select (CS) exclusivo de ese periférico y, simultáneamente, mantiene desactivado el CS de la memoria RAM.
+		
+		\item \textbf{Transferencia de datos:} El periférico habilitado lee los datos del bus de datos (si es escritura) o coloca la información solicitada en el bus de datos (si es lectura) para que el procesador la capture. La RAM ignora la operación porque nunca fue habilitada.
+	\end{itemize}
+	
+	% PREGUNTA 6
+	{\large \textbf{6. ¿Es posible que un programa normal (sin privilegios) acceda a un dispositivo mapeado en memoria? ¿Qué mecanismos de protección existen para evitar accesos no autorizados?}}
+	
+	En un sistema básico o en un simulador, un programa sin privilegios podría acceder a un dispositivo mapeado en memoria directamente. Sin embargo, en un sistema operativo moderno real, un programa de usuario (sin privilegios) no puede acceder a estas direcciones directamente. \\
+	
+	El principal mecanismo de protección es la Unidad de Gestión de Memoria (MMU) y la memoria virtual. El sistema operativo mapea las direcciones físicas de los periféricos de I/O únicamente en el espacio de memoria del kernel (espacio privilegiado). Si un programa de nivel de usuario intenta realizar un lw o sw a la dirección de un dispositivo, la MMU detectará la violación de permisos y lanzará una excepción de hardware (como un Segmentation Fault o un Access Violation), deteniendo la ejecución del programa intruso antes de que toque el dispositivo. \\
+	
+	% PREGUNTA 7
+	{\large \textbf{7. ¿Qué técnicas se pueden emplear para evitar esperas activas innecesarias al interactuar con dispositivos?}}
+	
+	\begin{itemize}
+		\item \textbf{Interrupciones (Interrupt-driven I/O):} El procesador inicia la operación en el dispositivo y luego continúa ejecutando otras tareas. Cuando el dispositivo termina la medición o está listo, envía una señal física por una línea de interrupción al procesador. El procesador pausa temporalmente lo que estaba haciendo, atiende el periférico y luego retoma su tarea original.
+		
+		\item \textbf{Acceso Directo a Memoria (DMA):} Para transferencias grandes de datos, se utiliza un controlador DMA. El procesador le indica al DMA de dónde a dónde mover los datos y qué cantidad. El DMA se encarga de transferir los datos del periférico a la memoria principal directamente, y solo interrumpe al procesador cuando ha finalizado todo el bloque.
+	\end{itemize}
+	
+	\newpage
+	
+	% PREGUNTA 8
+	{\large \textbf{8. Análisis y discusión de los resultados}} \\
+	
+	\textbf{A.} Resultados del controlador del sensor de luminosidad \\
+	
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabularx}{\textwidth}{|X | X | X | X|}
+			\hline
+			
+			\textbf{Escenarios} & \textbf{Entrada Simulada (Memoria} & \textbf{Comportamiento del Código} & \textbf{Salidas Finales}\\
+			
+			\hline
+			
+			Ideal & LUZ\_ESTADO = 1, LUZ\_DATOS = 850 & La subrutina valida el 1 y procede a leer de la dirección 0xFFFF0008 & \$v0 = 850, \$v1 = 0 (Éxito) \\
+			
+			\hline
+			
+			Error Hardware & LUZ\_ESTADO = -1 & Se detecta el -1 y salta inmediatamente a la etiqueta error\_hw & \$v0 = 0, \$v1 = -1 (Error) \\
+			
+			\hline
+			
+			Lectura temprana (borde) & LUZ\_ESTADO = 0 (Se llama a leer antes de inicializar) & Falla la comprobación de 1 y de -1, cayendo en lectura\_no\_disponible & \$v1 = -1 (Error) \\
+			
+			\hline
+		\end{tabularx}
+	\end{table}
+	
+	\textbf{B. Resultados del controlador del sensor de presión} \\
+	
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabularx}{\textwidth}{|X | X | X | X|}
+			\hline
+			
+			\textbf{Escenarios} & \textbf{Entrada Simulada (Memoria} & \textbf{Comportamiento del Código} & \textbf{Salidas Finales}\\
+			
+			\hline
+			
+			Ideal & PRESION\_ESTADO = 1, PRESION\_DATOS = 101325 & Primera lectura detecta 1, salta a exito\_lectura. & \$v0 = 101325, \$v1 = 0 (Éxito) \\
+			
+			\hline
+			
+			Error transitorio & PRESION\_ESTADO = -1 al inicio, luego del reinicio pasa a 1 & Entra a reintento. Ejecuta un jal anidado usando la pila correctamente, reinicializa el hardware y la segunda vez tiene éxito & \$v0 = Dato nuevo, \$v1 = 0 (Éxito tras reintento) \\
+			
+			\hline
+			
+			Fallo persistente & PRESION\_ESTADO = -1, luego del reinicio -1 & Tras el reintento, comprueba bne \$t1, \$t2, fallo\_final y aborta la operación. & \$v0 = 0, \$v1 = -1 (Error) \\
+			
+			\hline
+		\end{tabularx}
+	\end{table}
+	
+	\newpage
+	
+	\textbf{C.} Resultados del controlador del sensor de tensión
+	
+	\begin{table}[H]
+		\centering
+		\renewcommand{\arraystretch}{1.5}
+		\begin{tabularx}{\textwidth}{|X | X | X | X|}
+			\hline
+			
+			\textbf{Escenarios} & \textbf{Entrada Simulada (Memoria} & \textbf{Comportamiento del Código} & \textbf{Salidas Finales}\\
+			
+			\hline
+			
+			Ideal & TENSION\_ESTADO = 1, SISTOL = 120, DIASTOL = 80 & Sale del bucle esperar\_medicion inmediatamente y lee los dos registros. & \$v0 = 120, \$v1 = 80 \\
+			
+			\hline
+			
+			Espera larga &TENSION\_ESTADO = 0 por 1000 ciclos de reloj, luego 1. & El procesador se queda atrapado en el polling (beq \$t1, \$zero) & \$v0 = 120, \$v1 = 80 \\
+			
+			\hline
+			
+			Fallo de hardware (borde) & TENSION\_ESTADO = -1 & El código detecta que el valor no es 1. Se mantiene de forma segura en el bucle de espera, evitando leer datos inválidos. & Bucle infinito preventivo \\
+			
+			\hline
+		\end{tabularx}
+	\end{table}
+	
+	El algoritmo implementado para el sensor de luminosidad, al verificar de manera explícita tanto la presencia de errores de hardware (-1) como la disponibilidad de la lectura (1) antes de ejecutar el lw sobre el registro de datos, el algoritmo garantiza una extracción segura de la información y evita que el sistema procese valores inválidos de la memoria. En cuanto al sensor de presión, su diseño lidia con periféricos inestables mapeados en memoria, ya que intenta recuperar el hardware sin arriesgarse a caer en un ciclo infinito de reinicios si el daño físico es permanente. \\
+	
+	Finalmente, el controlador del sensor de tensión arterial logra su cometido, pero el algoritmo de espera tiene una vulnerabilidad. Esta lógica garantiza que, ante cualquier fallo de hardware o estado transitorio inesperado (como un valor de -1), el procesador se mantenga protegido en el bucle de espera en lugar de avanzar prematuramente. Con esta modificación técnica se evita por completo el problema lógico de leer basura digital en los registros de tensión sistólica y diastólica, cumpliendo rigurosamente con los requerimientos de la práctica y asegurando la integridad de la medición. \\
+	
+\end{document}
