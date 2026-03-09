@@ -19,19 +19,19 @@
 #   $v1: Valor de tensión Diastólica (entero 32 bits)
 
 controlador_tension:
-    # 1. Iniciar la medición
+    # Iniciar la medición
     li $t0, TENSION_CONTROL
     li $t1, 1
     sw $t1, 0($t0)          # Escribir 1 en TensionControl
 
-    # 2. Esperar a que la medición termine (Polling)
+    # Esperar a que la medición termine
     li $t0, TENSION_ESTADO
     li $t2, 1
 esperar_medicion:
     lw $t1, 0($t0)          # Leer TensionEstado
     bne $t1, $t2, esperar_medicion # Si el estado NO es 1, sigue esperando
 
-    # 3. Leer los resultados una vez que TensionEstado es 1
+    # Leer los resultados una vez que TensionEstado es 1
     li $t0, TENSION_SISTOL
     lw $v0, 0($t0)          # Cargar resultado Sistólico en $v0
 

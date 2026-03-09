@@ -59,6 +59,6 @@ error_hw:
     jr $ra
 
 lectura_no_disponible:
-    # Opcional: manejar si se llama a leer cuando el sensor no está listo
+    # Manejar si se llama a leer cuando el sensor no está listo
     li $v1, -1
     jr $ra

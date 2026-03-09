@@ -24,7 +24,7 @@ bucle_espera:
     jr $ra
 
 
-### Procedimiento: LeerPresion
+# Procedimiento: LeerPresion
 # Retorna: 
 #   $v0: Valor de presión.
 #   $v1: Estado (0: OK, -1: Error tras reintento).
@@ -40,7 +40,7 @@ LeerPresion:
     li $t2, 1
     beq $t1, $t2, exito_lectura
 
-    # Si el estado es -1 (Error), intentar reintento
+    # Si el estado es -1 (Error), reintentar
     li $t2, -1
     beq $t1, $t2, reintento
     
@@ -48,7 +48,7 @@ LeerPresion:
     j fallo_final
 
 reintento:
-    jal InicializarSensorPresion # Re-inicializar
+    jal InicializarSensorPresion # Reinicializar
     
     li $t0, PRESION_ESTADO
     lw $t1, 0($t0)          # Segunda lectura de estado postreintento
